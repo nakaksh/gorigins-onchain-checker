@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Read a wallet's old Gorigins holdings directly from Gorbagana." />
+    <title>Old Gorigins Wallet Checker</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>Old Gorigins Wallet Checker</h1>
+      <p>
+        Enter a public Gorbagana wallet address. This page reads its current finalized token accounts directly from
+        Gorbagana. It never connects to your wallet and cannot request a signature or transaction.
+      </p>
+
+      <form id="checker-form">
+        <label for="wallet">Wallet address</label>
+        <div class="input-row">
+          <input id="wallet" name="wallet" placeholder="Paste a Gorbagana wallet address" autocomplete="off" spellcheck="false" />
+          <button id="check-button" type="submit">Check wallet</button>
+        </div>
+      </form>
+
+      <p id="status" role="status" aria-live="polite"></p>
+
+      <section id="results" hidden>
+        <div class="result-heading">
+          <div>
+            <h2 id="result-title"></h2>
+            <p id="result-wallet" class="mono"></p>
+          </div>
+          <p id="result-slot" class="slot"></p>
+        </div>
+        <ol id="holdings"></ol>
+        <button id="download-button" type="button" hidden>Download result JSON</button>
+      </section>
+
+      <aside>
+        <h2>How to verify</h2>
+        <p>
+          A displayed Gulag #174 corresponds to original Gorigin #174 and restored Gorigin #174. Compare the number,
+          mint and wallet with the frozen community allocation JSON.
+        </p>
+        <p>
+          This page shows NFTs held directly by the wallet now. An NFT deposited into marketplace escrow is held by
+          the escrow account and will not appear under the seller's wallet here.
+        </p>
+      </aside>
+    </main>
+  </body>
+</html>
