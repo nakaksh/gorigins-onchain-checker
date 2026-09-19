@@ -18,13 +18,13 @@ let lastResult = null;
 let mintMapPromise;
 
 function loadMintMap() {
-  mintMapPromise ??= fetch("gorigins-old-mints.json", { cache: "force-cache" })
+  mintMapPromise ??= fetch("gorigins-old-mints-v2.json", { cache: "force-cache" })
     .then((response) => {
       if (!response.ok) throw new Error("The verified Gorigins mint list is unavailable.");
       return response.json();
     })
     .then((data) => {
-      if (data.mintCount !== 4445 || Object.keys(data.mints || {}).length !== 4445) {
+      if (data.schemaVersion !== 2 || data.mintCount !== 4445 || Object.keys(data.mints || {}).length !== 4445) {
         throw new Error("The verified Gorigins mint list failed validation.");
       }
       return data;
@@ -61,11 +61,30 @@ function selectHoldings(tokenAccounts, mintNumbers) {
     const mint = info?.mint;
     const amount = String(info?.tokenAmount?.amount ?? "");
     const decimals = Number(info?.tokenAmount?.decimals);
-    const number = mintNumbers[mint];
-    if (amount !== "1" || decimals !== 0 || !Number.isInteger(number) || seen.has(mint)) return [];
+    const matched = mintNumbers[mint];
+    if (amount !== "1" || decimals !== 0 || !Number.isInteger(matched?.number) || seen.has(mint)) return [];
     seen.add(mint);
-    return [{ number, mint, tokenAccount: entry.pubkey }];
+    return [{ ...matched, mint, tokenAccount: entry.pubkey }];
   }).sort((a, b) => a.number - b.number || a.mint.localeCompare(b.mint));
+}
+
+function gatewayUrl(url) {
+  const marker = "/ipfs/";
+  const index = String(url || "").indexOf(marker);
+  return index >= 0 ? `https://gateway.lighthouse.storage/ipfs/${String(url).slice(index + marker.length)}` : url;
+}
+
+async function loadCurrentArtwork(holding, image, fallback) {
+  try {
+    const response = await fetch(holding.currentMetadataUrl, { cache: "force-cache" });
+    if (!response.ok) throw new Error("metadata unavailable");
+    const metadata = await response.json();
+    if (typeof metadata.image !== "string" || !metadata.image) throw new Error("image unavailable");
+    image.src = gatewayUrl(metadata.image);
+  } catch {
+    image.hidden = true;
+    fallback.hidden = false;
+  }
 }
 
 function render(result) {
@@ -83,18 +102,47 @@ function render(result) {
   } else {
     for (const holding of result.holdings) {
       const row = document.createElement("li");
-      const labels = document.createElement("div");
+      const artwork = document.createElement("div");
+      artwork.className = "artwork-pair";
+      const currentArt = document.createElement("figure");
+      const restoredArt = document.createElement("figure");
+      const currentImage = document.createElement("img");
+      const restoredImage = document.createElement("img");
+      const currentFallback = document.createElement("div");
+      currentFallback.className = "image-fallback";
+      currentFallback.textContent = "Current artwork unavailable";
+      currentFallback.hidden = true;
+      currentImage.alt = `Current Gulag #${holding.number} artwork`;
+      currentImage.loading = "lazy";
+      restoredImage.src = holding.restoredImageUrl;
+      restoredImage.alt = `Restored Gorigin #${holding.number} artwork`;
+      restoredImage.loading = "lazy";
+      currentArt.append(currentImage, currentFallback, Object.assign(document.createElement("figcaption"), { textContent: "Current Gulag artwork" }));
+      restoredArt.append(restoredImage, Object.assign(document.createElement("figcaption"), { textContent: "Restored Gorigin artwork" }));
+      artwork.append(currentArt, restoredArt);
+      void loadCurrentArtwork(holding, currentImage, currentFallback);
+
+      const details = document.createElement("div");
+      details.className = "holding-details";
       const title = document.createElement("strong");
       const match = document.createElement("span");
-      const mint = document.createElement("a");
+      const links = document.createElement("div");
+      links.className = "mint-links";
+      const oldMint = document.createElement("a");
+      const restoredMint = document.createElement("a");
       title.textContent = `Gulag #${holding.number}`;
       match.textContent = `Matches restored Gorigin #${holding.number}`;
-      mint.textContent = holding.mint;
-      mint.href = `${EXPLORER}${holding.mint}`;
-      mint.target = "_blank";
-      mint.rel = "noreferrer";
-      labels.append(title, match);
-      row.append(labels, mint);
+      oldMint.textContent = `Old Gulag mint: ${holding.mint}`;
+      oldMint.href = `${EXPLORER}${holding.mint}`;
+      restoredMint.textContent = `Restored Gorigin mint: ${holding.restoredMint}`;
+      restoredMint.href = `${EXPLORER}${holding.restoredMint}`;
+      for (const link of [oldMint, restoredMint]) {
+        link.target = "_blank";
+        link.rel = "noreferrer";
+      }
+      links.append(oldMint, restoredMint);
+      details.append(title, match, links);
+      row.append(artwork, details);
       holdingsList.append(row);
     }
   }

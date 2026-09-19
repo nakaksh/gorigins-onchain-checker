@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-const map = JSON.parse(await readFile(new URL("./gorigins-old-mints.json", import.meta.url), "utf8"));
+const map = JSON.parse(await readFile(new URL("./gorigins-old-mints-v2.json", import.meta.url), "utf8"));
 const wallet = "HxmeRiRWSJcqzvsNucV76ZmuWjFjoXQkswMPqu2ezuJF";
 const response = await fetch("https://rpc.gorbagana.wtf", {
   method: "POST",
@@ -20,9 +20,9 @@ const rpc = await response.json();
 if (rpc.error) throw new Error(rpc.error.message);
 const holdings = rpc.result.value.flatMap((entry) => {
   const info = entry.account.data.parsed.info;
-  const number = map.mints[info.mint];
-  return info.tokenAmount.amount === "1" && info.tokenAmount.decimals === 0 && Number.isInteger(number)
-    ? [{ number, mint: info.mint }]
+  const matched = map.mints[info.mint];
+  return info.tokenAmount.amount === "1" && info.tokenAmount.decimals === 0 && Number.isInteger(matched?.number)
+    ? [{ ...matched, mint: info.mint }]
     : [];
 }).sort((a, b) => a.number - b.number);
 if (JSON.stringify(holdings.map((item) => item.number)) !== JSON.stringify([1846, 4104])) {

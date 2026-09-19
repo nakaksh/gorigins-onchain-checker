@@ -2,7 +2,7 @@
 
 A static, read-only website that displays old Gorigins held directly by a Gorbagana wallet.
 
-The browser calls Gorbagana's `getTokenAccountsByOwner` at finalized commitment and intersects the returned NFT mints with `gorigins-old-mints.json`. The lookup contains all 4,445 verified old collection mints and their current Gulag metadata numbers, derived from Gorbagana genesis `8MDnuYMWzFs7Pa6dBqBryvapuEtbGKgwCwbQ25NppS9h`.
+The browser calls Gorbagana's `getTokenAccountsByOwner` at finalized commitment and intersects the returned NFT mints with `gorigins-old-mints-v2.json`. The lookup contains all 4,445 verified old collection mints, current Gulag metadata numbers, restored mints and immutable restored artwork, derived from Gorbagana genesis `8MDnuYMWzFs7Pa6dBqBryvapuEtbGKgwCwbQ25NppS9h` and the audited restoration manifest.
 
 No wallet connection, signature, transaction, backend, analytics or allocation JSON is used.
 
