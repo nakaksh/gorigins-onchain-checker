@@ -112,7 +112,7 @@ function renderCollection(list, holdings, emptyMessage, showGulagArtwork) {
     for (const holding of holdings) {
       const row = document.createElement("li");
       const artwork = document.createElement("div");
-      artwork.className = "artwork-pair";
+      artwork.className = showGulagArtwork ? "artwork-pair" : "artwork-pair artwork-single";
       const restoredArt = document.createElement("figure");
       const restoredImage = document.createElement("img");
       restoredImage.src = holding.restoredImageUrl;
@@ -147,7 +147,7 @@ function renderCollection(list, holdings, emptyMessage, showGulagArtwork) {
         : `Restored Gorigin #${holding.number} held by this wallet`;
       restoredMint.textContent = `Restored Gorigin mint: ${holding.restoredMint}`;
       restoredMint.href = `${EXPLORER}${holding.restoredMint}`;
-      const linkedGulagMints = holding.type === "gulag" ? [holding.mint] : holding.gulagMints;
+      const linkedGulagMints = holding.type === "gulag" ? [holding.mint] : [];
       const mintLinks = linkedGulagMints.map((mint, index) => {
         const link = document.createElement("a");
         link.textContent = `${linkedGulagMints.length > 1 ? `Matching Gulag mint ${index + 1}` : "Gulag mint"}: ${mint}`;
