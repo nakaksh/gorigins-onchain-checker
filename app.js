@@ -11,20 +11,24 @@ const results = document.querySelector("#results");
 const resultTitle = document.querySelector("#result-title");
 const resultWallet = document.querySelector("#result-wallet");
 const resultSlot = document.querySelector("#result-slot");
-const holdingsList = document.querySelector("#holdings");
+const gulagList = document.querySelector("#gulag-holdings");
+const goriginList = document.querySelector("#gorigin-holdings");
+const gulagTitle = document.querySelector("#gulag-title");
+const goriginTitle = document.querySelector("#gorigin-title");
 const downloadButton = document.querySelector("#download-button");
 
 let lastResult = null;
 let mintMapPromise;
 
 function loadMintMap() {
-  mintMapPromise ??= fetch("gorigins-old-mints-v2.json", { cache: "force-cache" })
+  mintMapPromise ??= fetch("gorigins-mints-v3.json", { cache: "force-cache" })
     .then((response) => {
       if (!response.ok) throw new Error("The verified Gorigins mint list is unavailable.");
       return response.json();
     })
     .then((data) => {
-      if (data.schemaVersion !== 2 || data.mintCount !== 4445 || Object.keys(data.mints || {}).length !== 4445) {
+      if (data.schemaVersion !== 3 || Object.keys(data.items || {}).length !== 4444 ||
+          Object.keys(data.gulagMints || {}).length !== 4445 || Object.keys(data.goriginMints || {}).length !== 4444) {
         throw new Error("The verified Gorigins mint list failed validation.");
       }
       return data;
@@ -54,18 +58,28 @@ async function readTokenAccounts(wallet) {
   return data.result;
 }
 
-function selectHoldings(tokenAccounts, mintNumbers) {
+function selectHoldings(tokenAccounts, map) {
   const seen = new Set();
-  return tokenAccounts.flatMap((entry) => {
+  const holdings = { gulag: [], gorigins: [] };
+  for (const entry of tokenAccounts) {
     const info = entry?.account?.data?.parsed?.info;
     const mint = info?.mint;
     const amount = String(info?.tokenAmount?.amount ?? "");
     const decimals = Number(info?.tokenAmount?.decimals);
-    const matched = mintNumbers[mint];
-    if (amount !== "1" || decimals !== 0 || !Number.isInteger(matched?.number) || seen.has(mint)) return [];
+    if (amount !== "1" || decimals !== 0 || seen.has(mint)) continue;
+    const gulagNumber = map.gulagMints[mint];
+    const goriginNumber = map.goriginMints[mint];
+    const type = Number.isInteger(gulagNumber) ? "gulag" : Number.isInteger(goriginNumber) ? "gorigins" : null;
+    const number = type === "gulag" ? gulagNumber : goriginNumber;
+    const matched = map.items[number];
+    if (!type || !matched || matched.number !== number) continue;
     seen.add(mint);
-    return [{ ...matched, mint, tokenAccount: entry.pubkey }];
-  }).sort((a, b) => a.number - b.number || a.mint.localeCompare(b.mint));
+    holdings[type].push({ ...matched, mint, tokenAccount: entry.pubkey, type });
+  }
+  for (const values of Object.values(holdings)) {
+    values.sort((a, b) => a.number - b.number || a.mint.localeCompare(b.mint));
+  }
+  return holdings;
 }
 
 function gatewayUrl(url) {
@@ -87,20 +101,15 @@ async function loadCurrentArtwork(holding, image, fallback) {
   }
 }
 
-function render(result) {
-  lastResult = result;
-  resultTitle.textContent = `${result.holdings.length} old Gorigin${result.holdings.length === 1 ? "" : "s"} held directly`;
-  resultWallet.textContent = result.wallet;
-  resultSlot.textContent = `Finalized slot ${Number(result.slot).toLocaleString()}`;
-  holdingsList.replaceChildren();
-
-  if (result.holdings.length === 0) {
+function renderCollection(list, holdings, emptyMessage) {
+  list.replaceChildren();
+  if (holdings.length === 0) {
     const row = document.createElement("li");
     row.className = "empty";
-    row.textContent = "No old Gorigins are held directly by this wallet at this finalized slot.";
-    holdingsList.append(row);
+    row.textContent = emptyMessage;
+    list.append(row);
   } else {
-    for (const holding of result.holdings) {
+    for (const holding of holdings) {
       const row = document.createElement("li");
       const artwork = document.createElement("div");
       artwork.className = "artwork-pair";
@@ -128,24 +137,44 @@ function render(result) {
       const match = document.createElement("span");
       const links = document.createElement("div");
       links.className = "mint-links";
-      const oldMint = document.createElement("a");
       const restoredMint = document.createElement("a");
-      title.textContent = `Gulag #${holding.number}`;
-      match.textContent = `Matches restored Gorigin #${holding.number}`;
-      oldMint.textContent = `Old Gulag mint: ${holding.mint}`;
-      oldMint.href = `${EXPLORER}${holding.mint}`;
+      title.textContent = `${holding.type === "gulag" ? "Gulag" : "Gorigin"} #${holding.number}`;
+      match.textContent = holding.type === "gulag"
+        ? `Matches restored Gorigin #${holding.number}`
+        : `Restored Gorigin #${holding.number} held by this wallet`;
       restoredMint.textContent = `Restored Gorigin mint: ${holding.restoredMint}`;
       restoredMint.href = `${EXPLORER}${holding.restoredMint}`;
-      for (const link of [oldMint, restoredMint]) {
+      const linkedGulagMints = holding.type === "gulag" ? [holding.mint] : holding.gulagMints;
+      const mintLinks = linkedGulagMints.map((mint, index) => {
+        const link = document.createElement("a");
+        link.textContent = `${linkedGulagMints.length > 1 ? `Matching Gulag mint ${index + 1}` : "Gulag mint"}: ${mint}`;
+        link.href = `${EXPLORER}${mint}`;
+        return link;
+      });
+      for (const link of [...mintLinks, restoredMint]) {
         link.target = "_blank";
         link.rel = "noreferrer";
       }
-      links.append(oldMint, restoredMint);
+      links.append(...mintLinks, restoredMint);
       details.append(title, match, links);
       row.append(artwork, details);
-      holdingsList.append(row);
+      list.append(row);
     }
   }
+}
+
+function render(result) {
+  lastResult = result;
+  const total = result.holdings.gulag.length + result.holdings.gorigins.length;
+  resultTitle.textContent = `${total} matching NFT${total === 1 ? "" : "s"} held directly`;
+  resultWallet.textContent = result.wallet;
+  resultSlot.textContent = `Finalized slot ${Number(result.slot).toLocaleString()}`;
+  gulagTitle.textContent = `Gulag NFTs (${result.holdings.gulag.length})`;
+  goriginTitle.textContent = `Restored Gorigins (${result.holdings.gorigins.length})`;
+  renderCollection(gulagList, result.holdings.gulag,
+    "No Gulag NFTs are held directly by this wallet at this finalized slot.");
+  renderCollection(goriginList, result.holdings.gorigins,
+    "No restored Gorigins are held directly by this wallet at this finalized slot.");
   results.hidden = false;
   downloadButton.hidden = false;
 }
@@ -167,7 +196,7 @@ form.addEventListener("submit", async (event) => {
   status.textContent = "Reading finalized token accounts from Gorbagana…";
   try {
     const [map, tokenResult] = await Promise.all([loadMintMap(), readTokenAccounts(wallet)]);
-    const holdings = selectHoldings(tokenResult.value, map.mints);
+    const holdings = selectHoldings(tokenResult.value, map);
     const result = {
       wallet,
       finalizedSlot: tokenResult.context.slot,

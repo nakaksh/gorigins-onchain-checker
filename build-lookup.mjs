@@ -10,7 +10,9 @@ const identities = JSON.parse(identityBytes);
 const plan = JSON.parse(await readFile(resolve(artifactRoot, "reserved-mint-plan.json")));
 const metadata = JSON.parse(await readFile(resolve(artifactRoot, "metadata-index.json")));
 const originals = new Map(metadata.files.map((item) => [item.id, item]));
-const mints = {};
+const items = {};
+const gulagMints = {};
+const goriginMints = {};
 
 for (const row of identities.rows) {
   const number = row.observedFileNumber;
@@ -19,24 +21,41 @@ for (const row of identities.rows) {
   if (!Number.isInteger(number) || !restored?.replacementMint || !original?.imageCid) {
     throw new Error(`Incomplete lookup data for ${row.mint}`);
   }
-  mints[row.mint] = {
+  const item = items[number] ??= {
     number,
     restoredMint: restored.replacementMint,
     restoredImageUrl: `https://gateway.lighthouse.storage/ipfs/${original.imageCid}`,
-    currentMetadataUrl: `https://gateway.lighthouse.storage/ipfs/bafybeiepi7twbdwjnczlzrh2lrausoqh3pdhzuf6nrll5grmjxmjcd4xsy/${number}.json`
+    currentMetadataUrl: `https://gateway.lighthouse.storage/ipfs/bafybeiepi7twbdwjnczlzrh2lrausoqh3pdhzuf6nrll5grmjxmjcd4xsy/${number}.json`,
+    gulagMints: []
   };
+  if (item.restoredMint !== restored.replacementMint) throw new Error(`Conflicting restored mint for #${number}`);
+  item.gulagMints.push(row.mint);
+  gulagMints[row.mint] = number;
+  goriginMints[restored.replacementMint] = number;
 }
 
-if (Object.keys(mints).length !== 4445) throw new Error("Expected 4,445 original mints");
+if (Object.keys(items).length !== 4444) throw new Error("Expected 4,444 numbered items");
+if (Object.keys(gulagMints).length !== 4445) throw new Error("Expected 4,445 Gulag mints");
+if (Object.keys(goriginMints).length !== 4444) throw new Error("Expected 4,444 restored Gorigin mints");
+for (const item of Object.values(items)) item.gulagMints.sort();
 const output = {
-  schemaVersion: 2,
-  description: "Old Gorigins mints, current Gulag numbers, and restored immutable counterparts.",
+  schemaVersion: 3,
+  description: "On-chain Gulag and restored Gorigins mint indexes joined by the audited Gorigin number.",
   sourceGenesis: identities.genesisHash,
   sourceSha256: createHash("sha256").update(identityBytes).digest("hex"),
-  collectionMint: "GT8RwC8SowwEP5k7YLp59yXMJNpmCd7tgMHgdP7BA24S",
-  mintCount: Object.keys(mints).length,
-  mints: Object.fromEntries(Object.entries(mints).sort(([a], [b]) => a.localeCompare(b)))
+  collections: {
+    gulag: { mint: "GT8RwC8SowwEP5k7YLp59yXMJNpmCd7tgMHgdP7BA24S", mintCount: 4445 },
+    gorigins: { mint: "8tJSQyaA4gGRdn5GHRN7FSpsX3XagfXPn4KvGQmC7HWU", mintCount: 4444 }
+  },
+  items: Object.fromEntries(Object.entries(items).sort(([a], [b]) => Number(a) - Number(b))),
+  gulagMints: Object.fromEntries(Object.entries(gulagMints).sort(([a], [b]) => a.localeCompare(b))),
+  goriginMints: Object.fromEntries(Object.entries(goriginMints).sort(([a], [b]) => a.localeCompare(b)))
 };
 
-await writeFile("gorigins-old-mints-v2.json", `${JSON.stringify(output)}\n`, "utf8");
-console.log(JSON.stringify({ mintCount: output.mintCount, schemaVersion: output.schemaVersion }));
+await writeFile("gorigins-mints-v3.json", `${JSON.stringify(output)}\n`, "utf8");
+console.log(JSON.stringify({
+  schemaVersion: output.schemaVersion,
+  items: Object.keys(output.items).length,
+  gulagMints: Object.keys(output.gulagMints).length,
+  goriginMints: Object.keys(output.goriginMints).length
+}));

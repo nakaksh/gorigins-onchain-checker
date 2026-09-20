@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Read a wallet's old Gorigins holdings directly from Gorbagana." />
-    <title>Old Gorigins Wallet Checker</title>
+    <meta name="description" content="Read a wallet's Gulag and restored Gorigins holdings directly from Gorbagana." />
+    <title>Gulag &amp; Gorigins Wallet Checker</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="app.js" defer></script>
   </head>
   <body>
     <main>
-      <h1>Old Gorigins Wallet Checker</h1>
+      <h1>Gulag &amp; Gorigins Wallet Checker</h1>
       <p>
         Enter a public Gorbagana wallet address. This page reads its current finalized token accounts directly from
         Gorbagana. It never connects to your wallet and cannot request a signature or transaction.
@@ -34,7 +34,16 @@
           </div>
           <p id="result-slot" class="slot"></p>
         </div>
-        <ol id="holdings"></ol>
+        <div class="collection-results">
+          <section class="collection-group">
+            <h3 id="gulag-title"></h3>
+            <ol id="gulag-holdings"></ol>
+          </section>
+          <section class="collection-group">
+            <h3 id="gorigin-title"></h3>
+            <ol id="gorigin-holdings"></ol>
+          </section>
+        </div>
         <button id="download-button" type="button" hidden>Download result JSON</button>
       </section>
 
