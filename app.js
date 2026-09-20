@@ -101,7 +101,7 @@ async function loadCurrentArtwork(holding, image, fallback) {
   }
 }
 
-function renderCollection(list, holdings, emptyMessage) {
+function renderCollection(list, holdings, emptyMessage, showGulagArtwork) {
   list.replaceChildren();
   if (holdings.length === 0) {
     const row = document.createElement("li");
@@ -113,23 +113,26 @@ function renderCollection(list, holdings, emptyMessage) {
       const row = document.createElement("li");
       const artwork = document.createElement("div");
       artwork.className = "artwork-pair";
-      const currentArt = document.createElement("figure");
       const restoredArt = document.createElement("figure");
-      const currentImage = document.createElement("img");
       const restoredImage = document.createElement("img");
-      const currentFallback = document.createElement("div");
-      currentFallback.className = "image-fallback";
-      currentFallback.textContent = "Current artwork unavailable";
-      currentFallback.hidden = true;
-      currentImage.alt = `Current Gulag #${holding.number} artwork`;
-      currentImage.loading = "lazy";
       restoredImage.src = holding.restoredImageUrl;
       restoredImage.alt = `Restored Gorigin #${holding.number} artwork`;
       restoredImage.loading = "lazy";
-      currentArt.append(currentImage, currentFallback, Object.assign(document.createElement("figcaption"), { textContent: "Current Gulag artwork" }));
       restoredArt.append(restoredImage, Object.assign(document.createElement("figcaption"), { textContent: "Restored Gorigin artwork" }));
-      artwork.append(currentArt, restoredArt);
-      void loadCurrentArtwork(holding, currentImage, currentFallback);
+      if (showGulagArtwork) {
+        const currentArt = document.createElement("figure");
+        const currentImage = document.createElement("img");
+        const currentFallback = document.createElement("div");
+        currentFallback.className = "image-fallback";
+        currentFallback.textContent = "Current artwork unavailable";
+        currentFallback.hidden = true;
+        currentImage.alt = `Current Gulag #${holding.number} artwork`;
+        currentImage.loading = "lazy";
+        currentArt.append(currentImage, currentFallback, Object.assign(document.createElement("figcaption"), { textContent: "Current Gulag artwork" }));
+        artwork.append(currentArt);
+        void loadCurrentArtwork(holding, currentImage, currentFallback);
+      }
+      artwork.append(restoredArt);
 
       const details = document.createElement("div");
       details.className = "holding-details";
@@ -172,9 +175,9 @@ function render(result) {
   gulagTitle.textContent = `Gulag NFTs (${result.holdings.gulag.length})`;
   goriginTitle.textContent = `Restored Gorigins (${result.holdings.gorigins.length})`;
   renderCollection(gulagList, result.holdings.gulag,
-    "No Gulag NFTs are held directly by this wallet at this finalized slot.");
+    "No Gulag NFTs are held directly by this wallet at this finalized slot.", true);
   renderCollection(goriginList, result.holdings.gorigins,
-    "No restored Gorigins are held directly by this wallet at this finalized slot.");
+    "No restored Gorigins are held directly by this wallet at this finalized slot.", false);
   results.hidden = false;
   downloadButton.hidden = false;
 }
